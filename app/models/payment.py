@@ -2,6 +2,7 @@
 from django.db import models
 
 class Payment(models.Model):
+
     full_name = models.CharField(max_length=100)
     birth_date = models.DateField()
     gender = models.CharField(max_length=10)

@@ -20,3 +20,8 @@ class ZaloPayCallbackSerializer(serializers.Serializer):
     data = serializers.CharField()
     mac = serializers.CharField()
     type = serializers.IntegerField()
+
+
+
+class ZaloPayCreateOrderRequestSerializer(serializers.Serializer):
+    paymentId = serializers.IntegerField(required=True)
