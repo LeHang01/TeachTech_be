@@ -1,9 +1,15 @@
 import json
+import re
+import re
 import string
+
 from django.http import JsonResponse
 from django.utils.crypto import get_random_string
 from rest_framework.views import APIView
+from unidecode import unidecode
+
 from app.models import Payment, User  # Thêm import cho User nếu chưa có
+
 
 class ZaloPayCallback(APIView):
 
@@ -71,24 +77,33 @@ class ZaloPayCallback(APIView):
 
         return JsonResponse(result)
 
-    def generate_username(self, full_name, birth_date):
-        """Generate username based on full name and birth date"""
-        first_name = full_name.split()[0].lower()  # Lấy tên đầu tiên trong full name và chuyển thành chữ thường
+    def acronym_format(self, acronym_str):
+        return unidecode(''.join(word[0] for word in acronym_str.split()).lower())
 
-        # Chuyển birth_date thành chuỗi để lấy năm và tháng
-        birth_date_str = birth_date.strftime('%Y-%m-%d')  # Đổi đối tượng datetime.date thành chuỗi "YYYY-MM-DD"
+    def unsigned_format(self, unsigned_str):
+        return unidecode(unsigned_str.lower())
 
-        birth_year = birth_date_str.split('-')[0]  # Lấy năm sinh từ chuỗi
-        birth_month = birth_date_str.split('-')[1]  # Lấy tháng sinh từ chuỗi
+    def generate_username(self,full_name, birth_date):
+        matches = re.match(r"((\S+\s)*\S+)\s+(\S+)", full_name)
+        last_middle_name = matches.group(1)
+        first_name = matches.group(3)
 
-        # Tạo username theo định dạng: "ký tự đầu của tên" + "tháng" + "2 chữ số cuối của năm"
-        username = f"{first_name[0]}{birth_month}{birth_year[-2:]}"
+        last_middle_name_acronym = self.acronym_format(last_middle_name)
+        first_name_unsigned = self.unsigned_format(first_name)
+        date_of_birth_short = birth_date.strftime("%d%m%y")
 
-        return username
+        regex = "".join([last_middle_name_acronym, first_name_unsigned, date_of_birth_short])
+        return regex
 
     def generate_password(self, full_name, birth_date):
-        """Generate a password by combining full name and birth date"""
-        # Chúng ta có thể kết hợp `full_name` và `birth_date` để tạo mật khẩu
-        birth_date_str = birth_date.strftime('%Y%m%d')  # Đổi đối tượng datetime.date thành chuỗi "YYYYMMDD"
-        password = f"{full_name.replace(' ', '')}{birth_date_str}"  # Kết hợp full_name (bỏ dấu cách) và birth_date
-        return password  # Trả về mật khẩu đã tạo
+        full_name_unsigned = unidecode(full_name.strip().lower())
+
+        # Tách từng từ trong tên và lấy ký tự đầu tiên của mỗi từ
+        initials = "".join(word[0] for word in full_name_unsigned.split() if word)
+
+        # Lấy ngày tháng năm từ birth_date
+        date_str = birth_date.strftime('%d%m%y')  # 2 số ngày, 2 số tháng, 2 số cuối năm
+
+        # Tạo mật khẩu
+        password = f"{initials}_{date_str}"
+        return password

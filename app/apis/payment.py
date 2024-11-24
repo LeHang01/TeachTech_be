@@ -4,6 +4,7 @@ from rest_framework import generics, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
+from unidecode import unidecode
 
 from app.models.payment import Payment
 from app.serializers.payments import PaymentSerializer
@@ -53,8 +54,14 @@ class PaymentViewSet(viewsets.GenericViewSet,
             raise NotFound(detail="Không tìm thấy thanh toán với paymentId này.")
 
     def generate_password(self, full_name, birth_date):
-        """Generate a password by combining full name and birth date"""
-        # Chúng ta có thể kết hợp `full_name` và `birth_date` để tạo mật khẩu
-        birth_date_str = birth_date.strftime('%Y%m%d')  # Đổi đối tượng datetime.date thành chuỗi "YYYYMMDD"
-        password = f"{full_name.replace(' ', '')}{birth_date_str}"  # Kết hợp full_name (bỏ dấu cách) và birth_date
-        return password  # Trả về mật khẩu đã tạo
+        full_name_unsigned = unidecode(full_name.strip().lower())
+
+        # Tách từng từ trong tên và lấy ký tự đầu tiên của mỗi từ
+        initials = "".join(word[0] for word in full_name_unsigned.split() if word)
+
+        # Lấy ngày tháng năm từ birth_date
+        date_str = birth_date.strftime('%d%m%y')  # 2 số ngày, 2 số tháng, 2 số cuối năm
+
+        # Tạo mật khẩu
+        password = f"{initials}_{date_str}"
+        return password
