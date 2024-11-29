@@ -61,7 +61,7 @@ class ZaloPayCreateOrder(APIView):
             "amount": int(course_price),
             "description": "Thanh Toán Khóa Học: " + str(course_name),
             "bank_code": "CC",
-            "callback_url": 'https://bf89-14-165-105-121.ngrok-free.app/api/zalopay/callback/',
+            "callback_url": 'https://5358-14-245-240-124.ngrok-free.app/api/zalopay/callback/',
         }
 
         # Tạo MAC (Message Authentication Code) để bảo mật giao dịch

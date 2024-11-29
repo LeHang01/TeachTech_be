@@ -3,27 +3,27 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from app.serializers.face import FaceSerializer
+from app.serializers.face import FaceSerializer, FaceRecognizeSerializer, FaceRecordSerializer
 
 
-class FaceViewSet(viewsets.GenericViewSet, viewsets.mixins.CreateModelMixin):
+class FaceViewSet(viewsets.GenericViewSet):
     serializer_class = FaceSerializer
 
-    @swagger_auto_schema(method='post', request_body=FaceSerializer)
+    @swagger_auto_schema(method='post', request_body=FaceRecordSerializer)
     @action(detail=False, methods=['post'], url_path='record')
     def record(self, request):
-        serializer = FaceSerializer(data=request.data, context={'request': request})
+        serializer = FaceRecordSerializer(data=request.data, context={'request': request})
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        serializer.record(request.data)
+        serializer.record(images=request.data['images'], user_id=request.data['user_id'])
         return Response('Ghi nhận khuôn mặt thành công', status=status.HTTP_200_OK)
 
-    @swagger_auto_schema(method='post', request_body=FaceSerializer)
+    @swagger_auto_schema(method='post', request_body=FaceRecognizeSerializer)
     @action(detail=False, methods=['post'], url_path='recognize')
     def recognize(self, request):
-        serializer = FaceSerializer(data=request.data, context={'request': request})
+        serializer = FaceRecognizeSerializer(data=request.data, context={'request': request})
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        data = serializer.recognize(request.data)
+        data = serializer.recognize(images=request.data['images'])
         print(data)
-        return Response(str(data.email), status=status.HTTP_200_OK)
+        return Response(data, status=status.HTTP_200_OK)
