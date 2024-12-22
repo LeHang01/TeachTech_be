@@ -26,7 +26,7 @@ class LoginViewSet(APIView):
             full_name = first_name + ' ' + last_name
             # Nếu xác thực thành công, trả về thông tin người dùng
             return Response({"message": "Đăng nhập thành công", "username": user.username, "user_id": user.id,
-                             "is_teacher": user.is_teacher, "full_name": full_name}, status=status.HTTP_200_OK)
+                             "is_teacher": user.is_teacher, "full_name": full_name, "id": user.id}, status=status.HTTP_200_OK)
         else:
             # Nếu không thành công, trả về lỗi
             return Response({"message": "Sai tài khoản hoặc mật khẩu"}, status=status.HTTP_400_BAD_REQUEST)

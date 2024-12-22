@@ -1,14 +1,16 @@
 import json
 import re
-import re
-import string
+from datetime import datetime
 
+from django.conf import settings
+from django.contrib.auth.hashers import make_password
 from django.http import JsonResponse
-from django.utils.crypto import get_random_string
+from pymongo import MongoClient
 from rest_framework.views import APIView
 from unidecode import unidecode
 
 from app.models import Payment, User  # Thêm import cho User nếu chưa có
+from app.task import send_notification_batch
 
 
 class ZaloPayCallback(APIView):
@@ -30,8 +32,46 @@ class ZaloPayCallback(APIView):
         try:
             # Truy vấn thông tin thanh toán từ paymentId
             payment = Payment.objects.get(id=payment_id)
-            full_name = payment.full_name
             birth_date = payment.birth_date
+            full_name = payment.full_name
+            phone_number = payment.phone_number
+            address = payment.address
+            course_name = payment.course.course_name
+            course_price = payment.course.price
+            teacher_name = payment.course.teacher.name
+            teacher_id = payment.course.teacher.id
+            user = User.objects.get(teacher__id=teacher_id)
+            user_id = user.id
+            seen_users = []
+            channels = [
+                f'{str(user_id)}',
+            ]
+            response_data = {
+                'full_name': full_name,
+                'phone_number': phone_number,
+                'address': address,
+                'course_name': course_name,
+                'course_price': float(course_price),
+                'teacher_name': teacher_name,
+                'to-notify-user': str(user_id),
+                'seen_users': seen_users,
+                'created_at': datetime.utcnow(),
+            }
+            # Log dữ liệu trước khi lưu
+            with MongoClient(settings.MONGODB_URI) as client:
+                db = client[settings.MONGO_DB_NAME]
+                notifications = db["notifications"]
+                notifications.insert_one(response_data)
+
+            # Log dữ liệu sau khi lưu
+            response_data['_id']= str(response_data.get('_id'))
+            response_data = {**response_data, 'type': "Payment"}
+
+            # Kiểm tra việc gửi thông báo
+            send_notification_batch.delay(channels=channels, notification_data=response_data)
+
+            # Kiểm tra dữ liệu cuối cùng
+            print(f"Notification data sent: {response_data}")
 
             # Tạo username và password cho người dùng
             username = self.generate_username(full_name, birth_date)
@@ -42,17 +82,18 @@ class ZaloPayCallback(APIView):
             user = User.objects.filter(username=username).first()
             if not user:
                 # Tạo người dùng mới nếu chưa tồn tại
-                user = User.objects.create_user(
+                user = User.objects.create(
                     username=username,
-                    password=password,
+                    password=make_password(password),
                     first_name=full_name.split()[0],  # Họ
                     last_name=" ".join(full_name.split()[1:]),  # Tên
-                    email="user@example.com",  # Email (có thể bạn cần cung cấp email hợp lệ)
+                    email=f"{username}@gmail.com",  # Email (có thể bạn cần cung cấp email hợp lệ)
                     is_active=True,  # Đảm bảo người dùng mới có thể đăng nhập
                     is_staff=False,  # Không phải nhân viên (tùy theo yêu cầu)
                     is_superuser=False,  # Không phải superuser (tùy theo yêu cầu)
                     payment=payment
                 )
+                print('user', user)
                 user_dict = user.__dict__
                 user_dict.pop('_state', None)
             else:
@@ -83,7 +124,7 @@ class ZaloPayCallback(APIView):
     def unsigned_format(self, unsigned_str):
         return unidecode(unsigned_str.lower())
 
-    def generate_username(self,full_name, birth_date):
+    def generate_username(self, full_name, birth_date):
         matches = re.match(r"((\S+\s)*\S+)\s+(\S+)", full_name)
         last_middle_name = matches.group(1)
         first_name = matches.group(3)

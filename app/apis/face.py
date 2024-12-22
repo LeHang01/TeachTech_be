@@ -3,7 +3,9 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from app.models import Meeting, Attendance
 from app.serializers.face import FaceSerializer, FaceRecognizeSerializer, FaceRecordSerializer
+from django.utils import timezone
 
 
 class FaceViewSet(viewsets.GenericViewSet):
@@ -25,5 +27,10 @@ class FaceViewSet(viewsets.GenericViewSet):
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         data = serializer.recognize(images=request.data['images'])
-        print(data)
+        user_id  = int(request.data['user_id'])
+        meeting_id = int(request.data['meetingId'])
+        attendance = Attendance.objects.filter(user_id=user_id, meeting_id=meeting_id).first()
+        attendance.status = "Đã tham gia"
+        attendance.check_in = timezone.now()  # Ghi lại thời gian check-in
+        attendance.save()
         return Response(data, status=status.HTTP_200_OK)

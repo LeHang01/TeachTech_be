@@ -1,7 +1,13 @@
 # settings.py
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'dev')
+
+# Load environment variables from the corresponding .env file
+dotenv_path = f'.env.{ENVIRONMENT}'
+load_dotenv(dotenv_path=dotenv_path)
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -33,10 +39,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'phonenumber_field',
     'app',
     'rest_framework',
     'drf_yasg',
     'corsheaders',
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -76,13 +84,15 @@ WSGI_APPLICATION = 'be_teachtech.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': 'admin',
-        'HOST': 'localhost',
-        'PORT': '5432'
+        'NAME': os.environ.get('POSTGRES_NAME', 'teachtechdb'),  # Sửa tên cơ sở dữ liệu nếu cần
+        'USER': os.environ.get('POSTGRES_USER', 'admin'),  # Đảm bảo đúng người dùng
+        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'Admin123'),  # Sửa mật khẩu
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': os.environ.get('DB_PORT', '5433'),  # Đảm bảo đúng cổng nếu bạn sử dụng cổng 5433
     }
 }
+
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
@@ -151,4 +161,32 @@ JAZZMIN_SETTINGS = {
         {"name": "Documentation", "url": "https://docs.djangoproject.com/en/stable/", "icon": "fas fa-book", "new_window": True},
     ],
 }
+# Celery Config
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', '')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', '')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+
+# MongoDB Config
+MONGODB_URI = os.environ.get('MONGODB_URI', 'mongodb://admin:Admin123@localhost:27017/')
+MONGO_DB_NAME = os.environ.get('MONGO_DB_NAME', 'teach-tech')
+
+# Pusher Config
+PUSHER_APP_ID = os.environ.get('PUSHER_APP_ID', '')
+PUSHER_KEY = os.environ.get('PUSHER_KEY', '')
+PUSHER_SECRET = os.environ.get('PUSHER_SECRET', '')
+PUSHER_CLUSTER = os.environ.get('PUSHER_CLUSTER', '')
+
+# MinIO / S3 configuration
+AWS_ACCESS_KEY_ID = 'U0lWJXs1CUEFEG3rEJJ2'
+AWS_SECRET_ACCESS_KEY = 'sC9Hs6JpbcI1NN7NSAfJOvKgLMhY8outZUYyWFgN'
+AWS_STORAGE_BUCKET_NAME = 'teachtech-bucket'
+AWS_S3_ENDPOINT_URL = 'http://localhost:9000'  # MinIO's endpoint
+AWS_S3_REGION_NAME = 'us-east-1'  # MinIO region
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+
+
+
 

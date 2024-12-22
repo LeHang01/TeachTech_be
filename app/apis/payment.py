@@ -1,5 +1,9 @@
 # payments/views.py
 
+from datetime import datetime
+
+from django.conf import settings
+from pymongo import MongoClient
 from rest_framework import generics, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
@@ -8,6 +12,7 @@ from unidecode import unidecode
 
 from app.models.payment import Payment
 from app.serializers.payments import PaymentSerializer
+from app.task import send_notification_batch
 
 
 class PaymentViewSet(viewsets.GenericViewSet,
@@ -21,7 +26,7 @@ class PaymentViewSet(viewsets.GenericViewSet,
         serializer.is_valid(raise_exception=True)
 
         # Lưu bản ghi thanh toán vào cơ sở dữ liệu
-        payment = serializer.save()
+        serializer.save()
 
         # Trả về thông tin thanh toán đã lưu
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -42,10 +47,12 @@ class PaymentViewSet(viewsets.GenericViewSet,
             # Lấy thông tin người dùng
             user = payment.user
             username = user.username
+            user_id = user.id
             full_name = user.payment.full_name
             birth_date = user.payment.birth_date
             password = self.generate_password(full_name, birth_date)
             return Response({
+                'user_id': user_id,
                 'username': username,
                 'password': password,
             })

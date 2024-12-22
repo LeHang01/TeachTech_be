@@ -4,10 +4,10 @@ import cv2
 import numpy as np
 from keras_facenet import FaceNet
 from mtcnn import MTCNN
-from rest_framework import serializers, status
+from rest_framework import serializers
 
 from app.models import User
-from rest_framework.response import Response
+
 mtcnn = MTCNN()
 model = FaceNet()
 
@@ -42,6 +42,8 @@ class FaceSerializer(serializers.Serializer):
             user = User.objects.get(id=user_id)
             user.embedding = mean_embedding
             user.save()
+            print('mean_embedding', mean_embedding)
+            print('user', user)
         return "Thành công! Bạn đã ghi nhận khuôn mặt."
 
     def load_image_from_base64(self, image_base64: str):
@@ -109,11 +111,10 @@ class FaceSerializer(serializers.Serializer):
                                         "payment_date": user.payment.payment_date,
                                         "status": "recognized"
                                     }
-                                return Response({"message": "Người dùng nhận diện nhưng không tìm thấy thông tin thanh toán."},
-                                            status=status.HTTP_200_OK)
+                                raise serializers.ValidationError(
+                                    "Người dùng nhận diện nhưng không tìm thấy thông tin thanh toán.")
                             else:
-                                return Response({"message": "Khuôn mặt không được nhận dạng!"},
-                                            status=status.HTTP_404_NOT_FOUND)
+                                raise serializers.ValidationError("Khuôn mặt không được nhận dạng!")
         except Exception as e:
             raise serializers.ValidationError(e)
 
@@ -129,10 +130,11 @@ class FaceSerializer(serializers.Serializer):
                     print('++++++++++++', similarity)
                     if similarity >= 0.5:
                         return user.id
-            return 'FAIL'
+            return None
         except Exception as e:
             print(e)
             return None
+
 
 class FaceRecordSerializer(FaceSerializer):
     images = serializers.ListField(
@@ -140,7 +142,10 @@ class FaceRecordSerializer(FaceSerializer):
     )
     user_id = serializers.IntegerField(required=True)  # ID người dùng để cập nhật embedding
 
+
 class FaceRecognizeSerializer(FaceSerializer):
+    user_id = serializers.IntegerField(required=True)
+    meetingId = serializers.IntegerField(required=True)
     images = serializers.ListField(
         child=serializers.CharField()  # Nhận các chuỗi base64
     )

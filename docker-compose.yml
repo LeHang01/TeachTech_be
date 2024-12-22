@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_DB: teachtechdb
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: Admin123
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - teachtech
+    # Dịch vụ MinIO
+  minio:
+      image: minio/minio
+      restart: always
+      environment:
+        MINIO_ROOT_USER: admin
+        MINIO_ROOT_PASSWORD: Admin123
+      ports:
+        - "9000:9000"  # HTTP API port
+        - "9001:9001"  # MinIO Console port (Giao diện web để quản lý MinIO)
+      env_file:
+        - .env.dev
+      volumes:
+        - minio_data:/data  # Lưu trữ dữ liệu MinIO trong volume riêng
+        - ./minio_config:/root/.minio
+      command: server /data --console-address ":9001"
+      networks:
+        - teachtech
+  mongodb:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: Admin123
+    ports:
+      - "27017:27017"
+    networks:
+      - teachtech
+  redis:
+    image: redis:alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - teachtech
+
+volumes:
+  minio_data:
+  pgdata:
+  mongodbdata:
+
+networks:
+  teachtech:
