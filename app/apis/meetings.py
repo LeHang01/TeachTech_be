@@ -5,6 +5,7 @@ import boto3
 from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from pymongo import MongoClient
 from rest_framework import status, viewsets, generics
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -14,6 +15,7 @@ from app.serializers.meeting import MeetingSerializer
 
 # Khởi tạo logger
 logger = logging.getLogger(__name__)
+from app.task import send_notification_batch
 
 
 class MeetingViewSet(viewsets.GenericViewSet, generics.CreateAPIView):
@@ -21,8 +23,8 @@ class MeetingViewSet(viewsets.GenericViewSet, generics.CreateAPIView):
     serializer_class = MeetingSerializer
 
     def get(self, request):
-        # Lấy tất cả các cuộc họp và tài liệu
-        meetings = Meeting.objects.all()
+        # Lấy tất cả các cuộc họp và sắp xếp theo date_time giảm dần
+        meetings = Meeting.objects.all().order_by('-id')
         documents = Document.objects.all()
 
         # Tạo một dictionary ánh xạ tài liệu theo ID
@@ -59,7 +61,7 @@ class MeetingViewSet(viewsets.GenericViewSet, generics.CreateAPIView):
     def get_by_id(self, request, pk=None):
         try:
             # Lấy tất cả các cuộc họp có participant tương ứng với `pk`
-            meetings = Meeting.objects.filter(participants__contains=[pk])
+            meetings = Meeting.objects.filter(participants__contains=[pk]).order_by('-id')
 
             # Lấy tất cả các tài liệu
             documents = Document.objects.all()
@@ -159,6 +161,7 @@ class MeetingViewSet(viewsets.GenericViewSet, generics.CreateAPIView):
 
         # Bước 3: Lấy payment_id từ các course_id
         course_ids = courses.values_list('id', flat=True)
+        course_name = courses.first().course_name
         payments = Payment.objects.filter(course__in=course_ids)  # Lấy tất cả thanh toán liên kết với khóa học
         payment_ids = payments.values_list('id', flat=True)
 
@@ -191,6 +194,28 @@ class MeetingViewSet(viewsets.GenericViewSet, generics.CreateAPIView):
                 meeting=meeting,
                 status="Chưa tham gia",  # Trạng thái mặc định là "Chưa tham gia"
             )
+        seen_users = []
+        channels = [str(user_id) for user_id in user_ids]  # Chuyển từng user_id thành chuỗi
+        response_data = {
+            'time': request.data.get('dateTime'),
+            'course_name': course_name,
+            'teacher_name': teacher.name,
+            'to-notify-user': channels,
+            'seen_users': seen_users,
+            'created_at': datetime.utcnow(),
+        }
+        # Log dữ liệu trước khi lưu
+        with MongoClient(settings.MONGODB_URI) as client:
+            db = client[settings.MONGO_DB_NAME]
+            notifications = db["notifications"]
+            notifications.insert_one(response_data)
+
+        # Log dữ liệu sau khi lưu
+        response_data['_id'] = str(response_data.get('_id'))
+        response_data = {**response_data, 'type': "Meeting"}
+
+        # Kiểm tra việc gửi thông báo
+        send_notification_batch.delay(channels=channels, notification_data=response_data)
         return Response(status=status.HTTP_201_CREATED)
 
     def retrieve(self, request, pk=None):

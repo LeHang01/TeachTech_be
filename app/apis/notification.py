@@ -43,6 +43,7 @@ class NotificationViewSet(APIView):
                         'course_name': notification.get('course_name', ''),
                         'course_price': notification.get('course_price', 0),
                         'teacher_name': notification.get('teacher_name', ''),
+                        'time': notification.get('time', ''),
                         'to-notify-user': notification.get('to-notify-user', ''),
                         'is_seen': notification.get('is_seen', ''),
                         'seen_users': notification.get('seen_users', []),
